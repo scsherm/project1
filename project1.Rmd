@@ -1,0 +1,124 @@
+---
+title: "Project1"
+author: "Kumar Aiyer"
+date: "01/15/2016"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+Load and transform the data for the analysis
+
+```{r}
+options(width=120)
+#
+# write a function geteloaddatadf() - you will assign the return value to eloaddf
+# in the function do the following
+# 1. load the electric load data from elecloaddata.xlsx
+# you are not allowed to convert to .csv. Find an appropriate R package that can read .xlsx files and load
+# the data in a dataframe called eloaddf. The columns should be dates, kwh, kwVAR
+#
+# some notes on the data
+# the file has 15 min interval data from 1/1/2014 to 12/30/2015
+# when you import the data, the first column of your data set should be dates in POSIXct format
+# HINT: use the strptime and as.POSIX.ct functions to form the eloaddf$dates
+#
+# write a function getweatherdf() - you will assign the return value to weatherdf
+# 2. Next load the weather data from NOAA into a data frame weatherdf. The data is in 1874606932872dat.txt
+# This is 1 hour interval data for a specific weather station close to
+# the location of the site from which electric load was obtained
+#
+# you need to use fixed width parsing to read the data into a data frame.
+# add a column called dates to the dataframe similar to #1 above
+#
+# write a funcion getbillsdf() - you will assign the return value to billsdf
+# 3. Next load the bill data from billdata.xlsx
+# this data is monthly and carefully note the start and end date of each billing period. 
+# name the fields of the dataframe as
+# billdate, billstartdt, billenddt, kwh, mindemandkw, actualdemandkw, custcharge, 
+# distchrgkw, mttkwh, tbckwh,nugckwh, sbckwh, rggieekwh, deliverykwh, 
+# totdeliverychrg, supplychrg, totalchrg
+#
+
+```
+
+We now have 3 data sets
+
+1. Electric load data in 15 min interval
+2. Weather data in 60 min interval
+3. Bill data monthly
+
+Lets do some simple analysis
+
+Display the monthly load profile
+
+```{r}
+# display a summary of the electric load data eloaddf$kwh by summarizing it by year, month and total kwh over each month
+# your answer should display 24 rows without the header.
+```
+
+Now let us do some plotting of the load data
+
+```{r}
+# form a dataframe called eloadhrdf with two columns dates, kwh
+# this data frame sums the 15min kwh in the eloaddf to hourly data
+# next create a plot frame with two panels side by side
+# On the left panel show a heat map of kwh data for 2014 with x-axis as months and y-axis as hour of the day (1 to 24). use subsetting of the data frame rather than copying the data into yet another data frame
+# On the right panel show a heat map of kwh data for 2015 with x-axis as months and y-axis as hour of the day (1 to 24). use subsetting of the data frame rather than copying the data into yet another data frame
+```
+REPLACE THIS SECTION WITH YOUR COMMENTS ON THE DATA
+
+We plot the weather data using boxplot to explore the variation in temperature graphically
+
+```{r}
+# plot the weather data. Use boxplots in ggplot2 with month on the x-axis and temperature in y-axis
+```
+
+We are now ready to build a simple predictive model.
+
+```{r}
+create a dataframe with hourly interval data inside your function by 
+# combining selective columns from eloadhrdf and weatherdf
+# your dataframe should be called modeldatadf and the columns should be dates, year, month, hrofday, temp, kwh
+#
+#
+# write a simple function called predmodel. the model object should be the return parameter
+# pass in the appropriate data frames.
+# 
+# you should fit a GLM with the following specification kwh ~ month + hrofday + temp
+# your model should only use 2014 data for your prediction model
+#
+# use the summary function and display the results of the function
+```
+
+REPLACE THIS SECTION WITH YOUR COMMENTS OF YOUR "TOY" PREDICTIVE MODEL. FOCUS ON WHICH COVARIATES 
+ARE STATISTICALLY SIGNIFICANT
+
+Now show you skills in Machine Learning!
+
+```{r}
+#
+# use the dataframe modeldatadf
+# split it into training and testing data sets based on 2014 data for training and 2015 data for testing
+# Use the GBM algorithm in the caret package in R to train and validate the model.
+# You have free reign to display and explain your results graphically
+#
+#
+```
+Lets now compare the predicted model for 2015 with the bill data kwh!
+
+```{r}
+#
+# run your machine learning model and create a data frame of dates, kwh for 1hr interval data for 2015. note you
+# may need to include the last few days of 2014 in your dataset due to the billing dates in January (see billdata.xlsx)
+# call your data frame pred2015dfd.
+# now for each of the 12 rows in the billsdf, sum the kwh for the date range in each of the rows from pred2015df 
+# create a resultsdf which has billdate, predkwh (from pred2015df), actualkwh (from billsdf)
+# display the results
+```
+
+This completes this little exploration of energy load data. Thank You!
+
+
