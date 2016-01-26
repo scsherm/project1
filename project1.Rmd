@@ -1,6 +1,6 @@
 ---
 title: "Project1"
-author: "Kumar Aiyer"
+author: "Samuel Sherman - BlueFlame Energy Finance"
 date: "01/15/2016"
 output: html_document
 ---
@@ -12,7 +12,6 @@ When you click the **Knit** button a document will be generated that includes bo
 Load and transform the data for the analysis
 
 ```{r}
-options(width=120)
 #
 # write a function geteloaddatadf() - you will assign the return value to eloaddf
 # in the function do the following
@@ -41,7 +40,60 @@ options(width=120)
 # distchrgkw, mttkwh, tbckwh,nugckwh, sbckwh, rggieekwh, deliverykwh, 
 # totdeliverychrg, supplychrg, totalchrg
 #
+options(width=120)
+setwd("~/Documents/project1")
+library('xlsx')
+library('gdata')
 
+
+geteloaddatadf <- function(){
+        df = read.xlsx('elecloaddata.xlsx', 1)
+        df$DATE = formatC(df$DATE, width = 6, format = "d", flag = "0")
+        df$DATE = as.POSIXct(strptime(df$DATE, format = '%m%d%y'))
+        names(df)[1] = 'dates'
+        names(df)[3] = 'kwh'
+        names(df)[4] = 'kwVAR'
+        eloaddf = df#[c('dates', 'kwh', 'kwVAR')]
+        return(eloaddf)
+}
+
+
+getweatherdf <- function(){
+        df2 = read.fwf('1874606932872dat.txt',
+                      width=c(6,7,13,4,4,4,4,4,2,2,2,5,3,3,3,3,3,3,3,3,2,5,
+                              5,7,6,7,4,4,6,6,6,6,3))
+        names(df2) = c('USAF','WBAN','YEARMODAHRMN','DIR','SPD','GUS','CLG','SKC','L',
+                     'M','H','VSB','MW','MW','MW','MW','AW','AW','AW','AW','W','TEMP',
+                     'DEWP','SLP','ALT','STP','MAX','MIN','PCP01','PCP06','PCP24',
+                     'PCPXX','SD')
+        df2 = df2[-1,]
+        df2$dates = as.POSIXct(strptime(df2[1:19176,3], 
+                                                  format = '%Y%m%d'))
+        weatherdf = df2
+        return(weatherdf)
+}
+
+
+getbillsdf <- function(){
+        df3 = read.xls('billdata.xlsx', 1)
+        names(df3) = c('billdate', 'billstartdt', 'billenddt', 'kwh',
+        'mindemandkw','actualdemandkw', 'custcharge','distchrgkw', 'mttkwh',
+        'tbckwh','nugckwh', 'sbckwh', 'rggieekwh', 'deliverykwh',
+        'totdeliverychrg','supplychrg', 'totalchrg')
+        df3$billdate = as.POSIXct(strptime(df3$billdate, 
+                                                  format = '%m/%d/%y'))
+        df3$billstartdt = as.POSIXct(strptime(df3$billstartdt, 
+                                                  format = '%m/%d/%y'))
+        df3$billenddt = as.POSIXct(strptime(df3$billenddt, 
+                                                  format = '%m/%d/%y'))
+        billsdf = df3
+        return(billsdf)
+}
+
+
+eloaddf = geteloaddatadf()
+billsdf = getbillsdf()
+weatherdf = getweatherdf()
 ```
 
 We now have 3 data sets
@@ -57,7 +109,11 @@ Display the monthly load profile
 ```{r}
 # display a summary of the electric load data eloaddf$kwh by summarizing it by year, month and total kwh over each month
 # your answer should display 24 rows without the header.
+aggregate(eloaddf$kwh, by=list(format(eloaddf$dates, "%Y"), 
+                               format(eloaddf$dates, "%m")), FUN=sum)
 ```
+
+Here is the total kwh per month and year.
 
 Now let us do some plotting of the load data
 
@@ -67,14 +123,63 @@ Now let us do some plotting of the load data
 # next create a plot frame with two panels side by side
 # On the left panel show a heat map of kwh data for 2014 with x-axis as months and y-axis as hour of the day (1 to 24). use subsetting of the data frame rather than copying the data into yet another data frame
 # On the right panel show a heat map of kwh data for 2015 with x-axis as months and y-axis as hour of the day (1 to 24). use subsetting of the data frame rather than copying the data into yet another data frame
+library("ggplot2")
+library('gridExtra')
+
+#index for group by
+index = rep(1:17496, 4)
+index = index[order(index)]
+index2 = rep(1:17496) * 4
+dates = eloaddf$dates[index2]
+eloadhrdf = aggregate(eloaddf$kwh, by = list(index), FUN = sum)[2]
+eloadhrdf$dates = dates
+names(eloadhrdf) = c('kwh','dates')
+#hours
+eloadhrdf$hour = rep(1:24, 729)
+
+#left plot
+(p1 <- ggplot(subset(eloadhrdf, format(eloadhrdf$dates, "%Y") == '2014'),
+              aes(format(dates, "%m"), hour, fill = kwh)) +
+        geom_tile(colour = "white") + scale_fill_gradient(low = "white",
+                                                          high = "steelblue") + 
+        labs(x = "Month", y = "Hour of Day", title = '2014 Energy Use'))
+#right plot
+(p2 <- ggplot(subset(eloadhrdf, format(eloadhrdf$dates, "%Y") == '2015'),
+              aes(format(dates, "%m"), hour, fill = kwh)) +
+        geom_tile(colour = "white") + scale_fill_gradient(low = "white",
+                                                          high = "steelblue") + 
+        labs(x = "Month", y = "Hour of Day", title = '2015 Energy Use'))
+grid.arrange(p1, p2, ncol=2)
 ```
-REPLACE THIS SECTION WITH YOUR COMMENTS ON THE DATA
+
+There appears to be a lot more energy being used during the summer months, especially after hour 15 and before hour 24. This would make sense, as it would be around the time that people come home from work and during the summer, A/C can use up a lot of energy.  Interestingly, for the year 2014, there was similar energy use for months September and October, but August actually had less energy use.  
 
 We plot the weather data using boxplot to explore the variation in temperature graphically
 
 ```{r}
-# plot the weather data. Use boxplots in ggplot2 with month on the x-axis and temperature in y-axis
+#remove stars as NA
+weatherdf2 <- as.data.frame(sapply(weatherdf,sub,pattern='\\*',replacement=NA))
+weatherdf2 = weatherdf2[!is.na(weatherdf2$TEMP),]
+weatherdf2$dates = as.POSIXct(strptime(weatherdf2$dates[1:18153], 
+                                                  format = '%Y-%m-%d'))
+weatherdf2$TEMP = as.numeric(weatherdf2$TEMP)
+
+#show mean temp per month
+aggregate(weatherdf2$TEMP, by = list(format(weatherdf2$dates, "%m")), FUN = mean)
+
+weatherdf$TEMP = as.numeric(weatherdf$TEMP)
+
+#Initial boxplot
+bstats <- boxplot(TEMP ~ format(dates, "%m"), data = weatherdf, col = "lightgray",
+                  ylab = 'Temperature', xlab = 'Month') 
+
+#ggplot2 boxplot
+ggplot(weatherdf, aes(format(dates, "%m"), TEMP)) +
+        geom_boxplot(colour = "white") + 
+        labs(x = "Month", title = 'Temperatures Per Month', y = "Temperature")
 ```
+
+There are clearly some outliers here. However, the ones that appear to stand out the most are the 103 degree temperatures in winter and spring months. Other than that, the temperatures are clearly very cyclical with peaks in the summer and lows in the winter.
 
 We are now ready to build a simple predictive model.
 
@@ -91,12 +196,43 @@ We are now ready to build a simple predictive model.
 # your model should only use 2014 data for your prediction model
 #
 # use the summary function and display the results of the function
+
+joindf <- function(eloadhrdf, weatherdf){
+        weatherdf$hour = format(as.POSIXct(strptime(weatherdf$YEARMODAHRMN[1:19176], 
+                                                  format = '%Y%m%d%H%M')), '%H')
+        eloadhrdf$hour = rep(1:24, 729) #create hour data
+        eloadhrdf$hour = eloadhrdf$hour - 1
+        eloadhrdf$hour = format(as.POSIXct(strptime(eloadhrdf$hour[1:17496], 
+                                                    format = '%H')), '%H')
+        modeldatadf = merge(eloadhrdf, weatherdf, by = c("dates","hour"), 
+                            all.x = TRUE)
+        modeldatadf = modeldatadf[c('kwh', 'dates', 'hour', 'TEMP')]
+        modeldatadf$month = format(modeldatadf$dates, "%m")
+        modeldatadf$year = format(modeldatadf$dates, "%Y")
+        return(modeldatadf)
+}
+
+modeldatadf <- joindf(eloadhrdf, weatherdf)
+
+#removing unlikely outliers
+months = list('01','02','03','04','10','11','12')
+modeldatadf = subset(modeldatadf, !(TEMP == 103 & month %in% months))
+
+
+
+premodel <- function(modeldatadf){
+        data = subset(modeldatadf, year == '2014')
+        model = glm(kwh ~ month + hour + TEMP, data = data)
+        return(model)
+}
+
+model = premodel(modeldatadf)
+summary(model)
 ```
 
-REPLACE THIS SECTION WITH YOUR COMMENTS OF YOUR "TOY" PREDICTIVE MODEL. FOCUS ON WHICH COVARIATES 
-ARE STATISTICALLY SIGNIFICANT
+First, I removed the ouliers that seemed entirely unlikely. Specifically, these were the 103 degree temperatures in the winter and spring months. Then, I applied a generalized linear model. Month 1 and hour 0 were added into the baseline or intercept. The month of october appears to be most significant, with an increase of 177.2 kwh when true and holding all other variables constant. Additionally, hour 13 also appears to be significant, with an increase of 151 kwh when true and holding all other variables constant.
 
-Now show you skills in Machine Learning!
+Application of Gradient Boosted Machine Learning Algorithm
 
 ```{r}
 #
@@ -106,7 +242,61 @@ Now show you skills in Machine Learning!
 # You have free reign to display and explain your results graphically
 #
 #
+library(caret)
+set.seed(62)
+trainDat = subset(modeldatadf, year == '2014')
+testDat = subset(modeldatadf, year == '2015')
+
+#Re-create variables as factors
+trainDat$month = as.factor(trainDat$month)
+trainDat$hour = as.factor(trainDat$hour)
+testDat$month = as.factor(testDat$month)
+testDat$hour = as.factor(testDat$hour)
+
+#3 k-fold cross validation
+fitControl <- trainControl(method = "repeatedcv",number = 3,repeats = 2,
+                           verboseIter = TRUE)
+
+#Grid search parameters
+gbmGrid <-  expand.grid(interaction.depth = c(1, 3), #tree depth
+                        n.trees = c(1000, 5000, 10000), #number of trees
+                        shrinkage = c(0.1, 0.01, 0.001), #learning rate
+                        n.minobsinnode = 1) #low number here for regressor 
+
+set.seed(62)
+gbmFit <- train(kwh ~ month + hour + TEMP, data = trainDat,
+                 method = "gbm",
+                 trControl = fitControl,
+                 verbose = FALSE,
+                 tuneGrid = gbmGrid)
+
+gbmFit
+sd(trainDat$kwh)
 ```
+
+The best model had 5000 trees, a tree depth of 3 and shrinkage of 0.01. Examining the standard deviation as a baseline, the model is definetly performing better when comparing with RSME.
+
+Now I plot the residuals
+
+```{r}
+#plot 
+testDat = na.omit(testDat)
+yhat = predict(gbmFit, newdata = testDat[c('month','hour','TEMP')])
+y = as.numeric(testDat$kwh)
+res = y - yhat
+p <- qplot(yhat, res)
+p + geom_point() + 
+        labs(x = "Predicted", title = 'Residual Plot', y = "Residuals")
+res_sq = res**2
+mse = mean(res_sq)
+rmse = sqrt(mse)
+mse
+rmse
+sd(testDat$kwh)
+```
+
+The model is clearly doing better with lower values for energy use. The residual range is much wider as the kwh usage increases, with the predicted values being larger on average. This would make sense, as compared to the heatmap explored earlier. There were a few months that were inconsistent between the different years. However, the rmse shows a substantial improvement from the baseline standard deviation.
+
 Lets now compare the predicted model for 2015 with the bill data kwh!
 
 ```{r}
@@ -117,8 +307,19 @@ Lets now compare the predicted model for 2015 with the bill data kwh!
 # now for each of the 12 rows (billing periods) in the billsdf, sum the kwh for the date range in each of the rows from pred2015df for the corresponding start and end of billing in billsdf 
 # create a resultsdf which has billdate, predkwh (from pred2015df), actualkwh (from billsdf)
 # display the results
+pred2015df = modeldatadf[9008:dim(modeldatadf)[1],] #index for dates of 2015 billing
+pred2015df = na.omit(pred2015df)
+pred2015df$predkwh = predict(gbmFit, newdata = pred2015df[c('month','hour','TEMP')])
+
+Func <- function(a, b) with(pred2015df, sum(predkwh[dates >= a & dates <= b]))
+Func2 <- function(a, b) with(pred2015df, sum(kwh[dates >= a & dates <= b]))
+billsdf$predkwh = apply(billsdf[,2:3], 1, function(x) Func(x[1],x[2]))
+billsdf$actualkwh = apply(billsdf[,2:3], 1, function(x) Func2(x[1],x[2]))
+resultsdf = billsdf[c('billdate','predkwh','actualkwh')]
+resultsdf
 ```
 
-This completes this little exploration of energy load data. Thank You!
+Okay, so here I am not using the kwh from the billsdf because it is not an applicable or appropriate comparision. I should be comparing my out of sample data from the dataset that was used to train the model. The bills data is not consistent with the electricity load data, even in raw format. The mean kwh per 15 min interval of the eloaddf is `r mean(eloaddf$kwh)`. This would mean there is about 528 kwh in an hour, 12672 kwh in a day, and 380160 kwh in a month on average. This is already an order of magnitude in difference from what is presented in the bills data, even in raw format without data wrangling or machine learning applied. There is either an error in one of the datasets or the comparison is not legitimate. 
+However, comparing the true rates of kwh from the eload data with the predictions, I can see that these values are, in fact, very close. I still used the appropriate date ranges and billdate from billsdf. The values used here are not seen by the model (out of sample) and I am comparing the true labels to predictions. There appears to be a good balance bewteen bias and variance. The model is flexible enough to provide good estimates for unforseen data and does not have too much variance that would have been overfit to the in-sample data.
 
 
